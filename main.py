@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from migration_0001 import run_migration as run_migration_0001
 from migration_0002 import run_migration as run_migration_0002
-from models import Organization, OrganizationIn, QuestionSet, Question, Answer
+from models import Organization, OrganizationIn, QuestionSet, QuestionSetIn, Question, QuestionIn, Answer, AnswerIn
 
 app = FastAPI()
 
@@ -129,19 +129,64 @@ async def get_all_questions(id: int):
                 
 
 @app.post("/question/create")
+async def create_question(question: QuestionIn):
+    with Session(engine) as session:
+        db_question = Question(
+            organization_id=question.organization_id,
+            question_text=question.question_text,
+            answer_type=question.answer_type,
+        )
+        if question.answer_type is None:
+            return {"Error": "question.answer_type cannot be null on creation"}
+        if question.question_set_id is not None:
+            db_question.question_set_id = question.question_set_id
+        session.add_all([db_question])
+        session.commit()
+        question = session.execute(
+            select(Question).where(Question.question_text==db_question.question_text)
+        ).scalars().all()[0]
+    return {"Created resource": question}
+
 @app.get("/question/{id}")
-@app.post("/question/{id}/update")
+async def get_question(id: int):
+    ...
+@app.get("/question/{id}/answers")
+async def get_question_with_answers(id: int):
+    ...
+
+@app.put("/question/{id}/update")
+async def update_question(id: int, question: QuestionIn):
+    ...
+
 @app.delete("/question/{id}/delete")
+async def delete_question(id: int):
+    ...
 
 @app.post("/answer/create")
+async def create_answer(answer: AnswerIn):
+    ...
 @app.get("/answer/{id}")
-@app.post("/answer/{id}/update")
+async def get_answer(id: int):
+    ...
+@app.put("/answer/{id}/update")
+async def update_answer(id: int, answer: AnswerIn):
+    ...
 @app.delete("/answer/{id}/delete")
+async def delete_answer(id: int):
+    ...
 
 @app.post("/question_set/create")
+async def create_question_set(question_set: QuestionSetIn):
+    ...
 @app.get("/question_set/{id}")
-@app.post("/question_set/{id}/update")
+async def get_question_set(id: int):
+    ...
+@app.put("/question_set/{id}/update")
+async def update_question_set(id: int, question_set: QuestionSetIn):
+    ...
 @app.delete("/question_set/{id}/delete")
+async def delete_question_set(id: int):
+    ...
 
 
 ########################################

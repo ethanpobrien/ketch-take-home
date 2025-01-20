@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Literal
-from typing import get_args
+from typing import Literal, get_args, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import String, ForeignKey, Enum, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -33,6 +32,11 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(60))
 
 
+class QuestionSetIn(BaseModel):
+    name: str
+    active: Optional[bool]
+
+
 class QuestionSet(Base):
     __tablename__ = "question_set"
 
@@ -48,6 +52,13 @@ class QuestionSet(Base):
     organization_id: Mapped[int] = mapped_column(ForeignKey("organization.id"))
     name: Mapped[str] = mapped_column(String(100))
     active: Mapped[bool] = mapped_column(default=False)
+
+
+class QuestionIn(BaseModel):
+    question_text: str
+    organization_id: int
+    question_set_id: Optional[int] = Field(None)
+    answer_type: Optional[AnswerType] = Field(None)
 
 
 class Question(Base):
@@ -76,6 +87,8 @@ class Question(Base):
     ))
 
 
+class AnswerIn(BaseModel):
+    answer_text: str
 
 
 class Answer(Base):

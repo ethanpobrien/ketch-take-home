@@ -45,8 +45,24 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 ### GET localhost:8000/organization/{id}
 `curl localhost:8000/organization/{id}` to retrieve information about an organization
 
+### GET localhost:8000/organization/{id}/all_questions
+`curl localhost:8000/organization/{id}/all_questions` will retrieve a hierarchy of all the questions and their related answers in the response. The curl response is hard to read as the number of questions and related answers grows, so I used the python library `pprint` to pretty-print the output in the server logs.
+
 ### PUT localhost:8000/organization/{id}/update
 `curl --location --request PUT 'localhost:8000/organization/1/update' --header 'Content-Type: application/json' --data '{"name": "<a new name for an organization>"}'` to update an organization. The only field updateable is the name, and the only other field that changes is the "updated_at" time which reflects the most recent time this endpoint has been used.
 
 ### DELETE localhost:8000/organization/{id}/
 `curl --location --request DELETE 'localhost:8000/organization/{id}'` to delete an organization.
+
+
+### POST localhost:8000/question/create
+```
+curl --location 'localhost:8000/question/create' \
+--header 'Content-Type: application/json' \
+--data '{
+    "organization_id": 1,
+    "question_text": "This is my first example question",
+    "answer_type": "single_select"
+}'
+```
+will create a question. The answer_type has to be `single_select` or `multiple_select`. There is an optional parameter for `question_set_id`.
