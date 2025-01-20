@@ -29,11 +29,24 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 
 ## Endpoints and associated `curl` commands
 
-### localhost:8000/
+### GET localhost:8000/
 `curl localhost:8000/` to receive a "Hello world" response
 
-### localhost:8000/migrate
+### GET localhost:8000/migrate
 `curl localhost:8000/migrate` to run the initial migration that sets up the database tables. I wanted to run things through SQLAlchemy and decided to add this route instead of running a script manually.
 
-### localhost:8000/migrate_data
+### GET localhost:8000/migrate_data
 `curl localhost:8000/migrate_data` to run a data migration that sets up an example Organization, with an example QuestionSet with a number of Question and Answer rows tied to it, as well as one Question and related Answers that are not associated with the QuestionSet but are associated with the Organization
+
+
+### POST localhost:8000/organization/create
+`curl localhost:8000/organization/create --header 'Content-Type: application/json' --data '{"name": "<organization name here>"}'` to create an organization
+
+### GET localhost:8000/organization/{id}
+`curl localhost:8000/organization/{id}` to retrieve information about an organization
+
+### PUT localhost:8000/organization/{id}/update
+`curl --location --request PUT 'localhost:8000/organization/1/update' --header 'Content-Type: application/json' --data '{"name": "<a new name for an organization>"}'` to update an organization. The only field updateable is the name, and the only other field that changes is the "updated_at" time which reflects the most recent time this endpoint has been used.
+
+### DELETE localhost:8000/organization/{id}/
+`curl --location --request DELETE 'localhost:8000/organization/{id}'` to delete an organization.

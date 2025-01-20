@@ -1,12 +1,12 @@
 from pprint import pprint
 
 from fastapi import FastAPI
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, update, delete
 from sqlalchemy.orm import Session
 
 from migration_0001 import run_migration as run_migration_0001
 from migration_0002 import run_migration as run_migration_0002
-from models import Organization, QuestionSet, Question, Answer
+from models import Organization, OrganizationIn, QuestionSet, Question, Answer
 
 app = FastAPI()
 
@@ -16,31 +16,6 @@ engine = create_engine('postgresql://ketchuser:secureketchpassword789@db:5432/ta
 async def root():
     return {"message": "Hello world"}
 
-
-@app.post("/organization/create")
-async def create_organization(organization: Organization):
-    with Session(engine) as session:
-        session.add_all([organization])
-        session.commit()
-        organization = session.execute(
-            select(Organization).where(Organization.name==organization.name)
-        ).scalars().all()[0]
-    return {"Created resource": organization}
-
-@app.get("/organization/{id}")
-async def get_organization(id: int):
-    with Session(engine) as session:
-        organization = session.execute(
-            select(Organization).where(Organization.id==id)
-        ).scalars().all()[0]
-    return {
-        "Id": organization.id,
-        "Name": organization.name,
-        "Created at": organization.created_at,
-    }
-
-@app.post("/organization/{id}/update")
-@app.delete("/organization/{id}/delete")
 
 @app.get("/organization/all")
 async def get_all_organizations():
@@ -54,10 +29,65 @@ async def get_all_organizations():
             "Id": org.id,
             "Name": org.name,
             "Created at": org.created_at,
+            "Updated at": org.updated_at,
         })
     return {
         "Organizations": formatted_org_info
     }
+
+
+@app.post("/organization/create")
+async def create_organization(organization: OrganizationIn):
+    with Session(engine) as session:
+        db_org = Organization(name=organization.name)
+        session.add_all([db_org])
+        session.commit()
+        organization = session.execute(
+            select(Organization).where(Organization.name==db_org.name)
+        ).scalars().all()[0]
+    return {"Created resource": organization}
+
+
+@app.get("/organization/{id}")
+async def get_organization(id: int):
+    with Session(engine) as session:
+        organization = session.execute(
+            select(Organization).where(Organization.id==id)
+        ).scalars().all()[0]
+    return {
+        "Id": organization.id,
+        "Name": organization.name,
+        "Created at": organization.created_at,
+        "Updated at": organization.updated_at,
+    }
+
+@app.put("/organization/{id}/update")
+async def update_organization(id: int, organization: OrganizationIn):
+    with Session(engine) as session:
+        session.execute(
+            update(Organization).where(Organization.id==id).values(name=organization.name)
+        )
+        session.commit()
+        updated_org = session.execute(
+            select(Organization).where(Organization.id==id)
+        ).scalars().all()[0]
+    return {
+        "Id": updated_org.id,
+        "Name": updated_org.name,
+        "Created at": updated_org.created_at,
+        "Updated at": updated_org.updated_at,
+    }
+
+
+@app.delete("/organization/{id}")
+def delete_organization(id: int):
+    with Session(engine) as session:
+        session.execute(
+            delete(Organization).where(Organization.id==id)
+        )
+        session.commit()
+    return {"message": "Delete successful"}
+
 
 @app.get("/organization/{id}/all_questions")
 async def get_all_questions(id: int):

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 from typing import get_args
 
+from pydantic import BaseModel
 from sqlalchemy import String, ForeignKey, Enum, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -13,12 +14,20 @@ class Base(DeclarativeBase):
     pass
 
 
+class OrganizationIn(BaseModel):
+    name: str
+
+
 class Organization(Base):
     __tablename__ = "organization"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
         insert_default=func.CURRENT_TIMESTAMP()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        insert_default=func.CURRENT_TIMESTAMP(),
+        onupdate=func.CURRENT_TIMESTAMP()
     )
 
     name: Mapped[str] = mapped_column(String(60))
@@ -32,7 +41,8 @@ class QuestionSet(Base):
         insert_default=func.CURRENT_TIMESTAMP()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        insert_default=func.CURRENT_TIMESTAMP(), onupdate=func.CURRENT_TIMESTAMP()
+        insert_default=func.CURRENT_TIMESTAMP(),
+        onupdate=func.CURRENT_TIMESTAMP()
     )
 
     organization_id: Mapped[int] = mapped_column(ForeignKey("organization.id"))
@@ -48,7 +58,8 @@ class Question(Base):
         insert_default=func.CURRENT_TIMESTAMP()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        insert_default=func.CURRENT_TIMESTAMP(), onupdate=func.CURRENT_TIMESTAMP()
+        insert_default=func.CURRENT_TIMESTAMP(),
+        onupdate=func.CURRENT_TIMESTAMP()
     )
 
     organization_id: Mapped[int] = mapped_column(ForeignKey("organization.id"))
@@ -75,7 +86,8 @@ class Answer(Base):
         insert_default=func.CURRENT_TIMESTAMP()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        insert_default=func.CURRENT_TIMESTAMP(), onupdate=func.CURRENT_TIMESTAMP()
+        insert_default=func.CURRENT_TIMESTAMP(),
+        onupdate=func.CURRENT_TIMESTAMP()
     )
 
     question_id: Mapped[int] = mapped_column(ForeignKey("question.id"))
