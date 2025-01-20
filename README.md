@@ -15,6 +15,15 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 *Caveat*: I would take a quick look at your docker volumes just so that you don't unintentionally prune a volume not associated with this exercise.
 
 
+## Instructions for running
+1. Install Docker if needed
+1. `docker compose up`
+1. `curl localhost:8000/migrate`
+    - this **is required** to set up the tables in the postgres database
+1. `curl localhost:8000/migrate_data`
+    - this **is not required**, but can help show the relationships between the various tables and skip some of the time needed to run the necessary `curl`s that would otherwise set up the objects.
+
+
 ## DB access (places user in psql REPL/interactive terminal)
 `docker exec -it server bash -c 'PGPASSWORD=secureketchpassword789 psql -U ketchuser -h db takehome'`
 
@@ -22,3 +31,9 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 
 ### localhost:8000/
 `curl localhost:8000/` to receive a "Hello world" response
+
+### localhost:8000/migrate
+`curl localhost:8000/migrate` to run the initial migration that sets up the database tables. I wanted to run things through SQLAlchemy and decided to add this route instead of running a script manually.
+
+### localhost:8000/migrate_data
+`curl localhost:8000/migrate_data` to run a data migration that sets up an example Organization, with an example QuestionSet with a number of Question and Answer rows tied to it, as well as one Question and related Answers that are not associated with the QuestionSet but are associated with the Organization
