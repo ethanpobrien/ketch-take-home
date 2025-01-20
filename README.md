@@ -10,7 +10,7 @@ Goals of this web service are to allow for:
 ## Requirements to run
 Docker compose is needed to run the containers for this web service. The easiest way I've found to install docker compose is through [installing Docker desktop](https://docs.docker.com/compose/install/).
 
-To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit and `docker compose down` and `docker volume prune` will bring down the containers and delete the associated volumes.
+To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit and `docker compose down` and `docker volume prune` will bring down the containers and delete the associated volumes. So generally my routine has been to run `docker compose up`, curl the endpoints, and then use `docker compose down && docker volume prune`.
 
 *Caveat*: I would take a quick look at your docker volumes just so that you don't unintentionally prune a volume not associated with this exercise.
 
