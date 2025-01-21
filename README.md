@@ -21,7 +21,114 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 1. `curl localhost:8000/migrate`
     - this **is required** to set up the tables in the postgres database
 1. `curl localhost:8000/migrate_data`
-    - this **is not required**, but can help show the relationships between the various tables and skip some of the time needed to run the necessary `curl`s that would otherwise set up the objects.
+    - this **is not required**, but it is suggested to help show the relationships between the various tables and skip some of the time needed to run the necessary `curl`s that would otherwise set up the objects.
+1. `curl localhost:8000/organization/1/all_questions`
+    - this will print out all of the questions of the organization, and will pretty-print the information in the docker container logs for easier readability.
+1. `curl localhost:8000/question_set/1/all_questions`
+    - this will return a similar result, but with one less question as only 4 questions are associated with the QuestionSet. The server logs show the same formatted output as the curl is hard to read.
+
+If you would like to create your own Organization and go from there, here are the commands you will need:
+1. `curl localhost:8000/organization/create --header 'Content-Type: application/json' --data '{"name": "New Organization"}'`
+    - save the Id from this output, in my case, `2`.
+1. Use the following curl command to create a QuestionSet:
+    ```
+    curl --location 'localhost:8000/question_set/create' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "name": "My question set",
+        "organization_id": 2,
+        "active": true,
+        "question_ids": []
+    }'
+    ```
+    - save the Id from this output as well, which was again `2`.
+    - we will use this to create questions associated with this QuestionSet.
+1. Then create a Question associated with the QuestionSet:
+    ```
+    curl --location 'localhost:8000/question/create' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "organization_id": 2,
+        "question_text": "This is my first example question",
+        "answer_type": "single_select",
+        "question_set_id": 2
+    }'
+    ```
+    Which has a response that looks like:
+    ```
+    {"Created resource":{"question_text":"This is my first example question","organization_id":2,"question_set_id":2,"answer_type":"single_select","id":6,"updated_at":"2025-01-21T01:48:18.305053","created_at":"2025-01-21T01:48:18.305053"}}
+    ```
+    - save the Id from this as well, as we'll need the Id of this question to create one or more Answers for the Question.
+1. And create an associated Answer for this Question, using the output "id" from the response to the last `curl` as an input for "question_id":
+    ```
+    curl --location 'localhost:8000/answer/create' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "question_id": 6,
+        "answer_text": "this is an answer for a question"
+    }'
+    ```
+1. Now you should be able to curl the `question_set/{id}/all_questions` endpoint and see the objects created in the last 4 commands:
+    ```
+    curl localhost:8000/question_set/2/all_questions
+    ```
+    and the output for me, from the docker container, looks like:
+    ```
+    server  | INFO:     172.18.0.1:59260 - "POST /answer/create HTTP/1.1" 200 OK
+    server  | {'QuestionSet': {'Created_at': datetime.datetime(2025, 1, 21, 1, 44, 28, 578875),
+    server  |                  'Id': 2,
+    server  |                  'Name': 'My question set',
+    server  |                  'Updated_at': datetime.datetime(2025, 1, 21, 1, 44, 28, 578875)},
+    server  |  'Questions': {'6': {'Answer type': 'single_select',
+    server  |                      'Answers': [{'Answer text': 'this is an answer for a '
+    server  |                                                  'question',
+    server  |                                   'Created at': datetime.datetime(2025, 1, 21, 1, 53, 31, 409907),
+    server  |                                   'Id': 21,
+    server  |                                   'Updated at': datetime.datetime(2025, 1, 21, 1, 53, 31, 409907)}],
+    server  |                      'Created at': datetime.datetime(2025, 1, 21, 1, 48, 18, 305053),
+    server  |                      'Id': 6,
+    server  |                      'Question text': 'This is my first example question',
+    server  |                      'QuestionSet id': 2,
+    server  |                      'Updated at': datetime.datetime(2025, 1, 21, 1, 48, 18, 305053)}}} 
+    ```
+1. You can continue to create Questions and Answers, and keep adding them to the QuestionSet on Question creation. However, if you have a number of Questions and you want to associate them with the QuestionSet after creation, you can do so with the update endpoint for the QuestionSet:
+    ```
+    curl --location --request PUT 'localhost:8000/question_set/2/update' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "name": "A new name for question set",
+        "active": true,
+        "question_ids": [1, 2, 3, 6]
+    }'
+    ```
+    This endpoint expects the question_ids to be a full description of the intended Questions that are to be associated with the QuestionSet, and its response describes any additions or deletions made as a result of this API call:
+    ```
+    {
+        "message":"Updated QuestionSet id: 2",
+        "removed_question_ids":[],
+        "added_question_ids":[1,2,3]
+    }
+    ```
+    and if I run the same command immediately after, it will respond with:
+    ```
+    {
+        "message":"Updated QuestionSet id: 2",
+        "removed_question_ids":[],
+        "added_question_ids":[]
+    }
+    ```
+    because no change has occurred with respect to the associated Question ids.
+
+1. Questions can be updated at the `question/{id}/update` endpoint:
+    ```
+    curl --location --request PUT 'localhost:8000/question/1/update' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "question_text": "this is updated text",
+        "question_set_id": null,
+    }'
+    ```
+    and the `question_set_id` will need to be non-null if an existing link to a QuestionSet is intended to stay in place.
 
 
 ## DB access (places user in psql REPL/interactive terminal)
@@ -175,3 +282,16 @@ will update an answer. The only field updateable at the moment is the `answer_te
 
 ### DELETE localhost:8000/answer/{id}/delete
 `curl --location --request DELETE 'localhost:8000/answer/1/delete'` will delete an answer.
+
+
+## Final thoughts
+I went through this project with the goal of having a final table called `UserAnswer` that would keep track of how users had filled out QuestionSets (if organizations used them) or just of Questions offered by an organization. This UserAnswer table would track which Question and Answer(s) were selected by the user, and validation would be done to reinforce the `answer_type` field that is set on Questions.
+I tried to put as much CRUD functionality into this as I could, and to keep the documentation up to date as well. I think there are a couple endpoints that are either not implemented for the current tables or are not fleshed out fully.
+There are also a number of changes I would like to make that would make for a better web service:
+1. Better handling of errors, propagating server side errors through the API to indicate if Ids do not exist in tables, etc.
+    1. right now everything just shows as an Internal Server Error.
+2. Authentication so that the API user isn't a superuser, but is restricted to their organization only.
+    1. This would require authentication which I thought was out of scope for the current project but would be a hard requirement if this were a proof of concept for a customer.
+3. A better fleshed out migration system for the database tables
+    1. right now there is a very basic migration system, with a single table setup migration and a data seeding migration, and as I have not used SQLAlchemy before I am not sure how this pattern would scale but I think it would not scale well.
+    1. [Alembic](https://alembic.sqlalchemy.org/en/latest/autogenerate.html) seems like the natural choice for a SQLAlchemy project.
