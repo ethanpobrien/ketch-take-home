@@ -30,7 +30,7 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 If you would like to create your own Organization and go from there, here are the commands you will need:
 1. `curl localhost:8000/organization/create --header 'Content-Type: application/json' --data '{"name": "New Organization"}'`
     - save the Id from this output, in my case, `2`.
-1. Use the following curl command to create a QuestionSet:
+1. Use the following curl command to create a QuestionSet, using the Id from the last output as the input for the `organization_id` parameter:
     ```
     curl --location 'localhost:8000/question_set/create' \
     --header 'Content-Type: application/json' \
@@ -42,7 +42,7 @@ If you would like to create your own Organization and go from there, here are th
     }'
     ```
     - save the Id from this output as well, which was again `2`.
-    - we will use this to create questions associated with this QuestionSet.
+    - we will use this to create Questions associated with this QuestionSet.
 1. Then create a Question associated with the QuestionSet:
     ```
     curl --location 'localhost:8000/question/create' \
@@ -285,7 +285,7 @@ will update an answer. The only field updateable at the moment is the `answer_te
 
 
 ## Final thoughts
-I went through this project with the goal of having a final table called `UserAnswer` that would keep track of how users had filled out QuestionSets (if organizations used them) or just of Questions offered by an organization. This UserAnswer table would track which Question and Answer(s) were selected by the user, and validation would be done to reinforce the `answer_type` field that is set on Questions.
+I went through this project with the idea of ultimately having a table called `UserAnswer` that would keep track of how users had filled out QuestionSets (if organizations used them) or just Questions offered by an organization. This UserAnswer table would track which Question and Answer(s) were selected by the user, and would provide validation to reinforce the `answer_type` field that is set on Questions.
 I tried to put as much CRUD functionality into this as I could, and to keep the documentation up to date as well. I think there are a couple endpoints that are either not implemented for the current tables or are not fleshed out fully.
 There are also a number of changes I would like to make that would make for a better web service:
 1. Better handling of errors, propagating server side errors through the API to indicate if Ids do not exist in tables, etc.
