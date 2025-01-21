@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, get_args, Optional
+from typing import Literal, get_args, Optional, List
 
 from pydantic import BaseModel, Field
 from sqlalchemy import String, ForeignKey, Enum, func
@@ -33,8 +33,15 @@ class Organization(Base):
 
 
 class QuestionSetIn(BaseModel):
+    organization_id: int
     name: str
     active: Optional[bool]
+    question_ids: List[int]
+
+class QuestionSetUpdateIn(BaseModel):
+    name: str
+    active: Optional[bool]
+    question_ids: List[int]
 
 
 class QuestionSet(Base):

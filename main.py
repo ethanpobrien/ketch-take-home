@@ -14,6 +14,7 @@ from models import (
     OrganizationIn,
     QuestionSet,
     QuestionSetIn,
+    QuestionSetUpdateIn,
     Question,
     QuestionIn,
     QuestionUpdateIn,
@@ -219,13 +220,16 @@ async def update_question(id: int, question_update: QuestionUpdateIn):
 async def delete_question(id: int):
     # delete question with answers
 
-    # with Session(engine) as session:
-    #     session.execute(
-    #         delete(Organization).where(Organization.id==id)
-    #     )
-    #     session.commit()
-    # return {"message": "Delete successful"}
-    ...
+    with Session(engine) as session:
+        session.execute(
+            delete(Answer).where(Answer.question_id==id)
+        )
+        session.commit()
+        session.execute(
+            delete(Question).where(Question.id==id)
+        )
+        session.commit()
+    return {"message": "Delete successful"}
 
 
 @app.post("/answer/create")
@@ -283,22 +287,120 @@ async def delete_answer(id: int):
     return {"message": "Delete successful"}
 
 @app.post("/question_set/create")
-async def create_question_set(question_set: QuestionSetIn):
-    ...
+async def create_question_set(question_set_in: QuestionSetIn):
+    with Session(engine) as session:
+        db_question_set = QuestionSet(
+            organization_id=question_set_in.organization_id,
+            name=question_set_in.name,
+            active=question_set_in.active,
+        )
+        session.add_all([db_question_set])
+        session.commit()
+        session.refresh(db_question_set)
+        print(db_question_set.id)
+        for question_id in question_set_in.question_ids:
+            session.execute(
+                update(Question).where(
+                    Question.id==question_id
+                ).values(
+                    question_set_id=db_question_set.id
+                )
+            )
+            session.commit()
+        return {"message": f"Created QuestionSet with Id {db_question_set.id} and added Question Ids {question_set_in.question_ids} to the QuestionSet"}
+
 @app.get("/question_set/{id}")
 async def get_question_set(id: int):
-    # with Session(engine) as session:
-    #     question = session.execute(
-    #         select(Question).where(Question.id==id)
-    #     ).scalars().all()[0]
-    # return question
-    ...
+    with Session(engine) as session:
+        question_set = session.execute(
+            select(QuestionSet).where(QuestionSet.id==id)
+        ).scalars().all()[0]
+    return question_set
+
+@app.get("/question_set/{id}/all_questions")
+async def get_question_set_with_questions(id: int):
+    formatted_information = {}
+    with Session(engine) as session:
+        question_set = session.execute(
+            select(QuestionSet).where(QuestionSet.id==id)
+        ).scalars().all()[0]
+        formatted_information["QuestionSet"] = {
+            "Id": question_set.id,
+            "Name": question_set.name,
+            "Created_at": question_set.created_at,
+            "Updated_at": question_set.updated_at,
+        }
+        questions = session.execute(
+            select(Question).where(Question.question_set_id==id)
+        ).scalars().all()
+        formatted_information["Questions"] = {}
+        for question in questions:
+            answers = session.execute(
+                select(Answer).where(Answer.question_id==question.id)
+            ).scalars().all()
+            formatted_information["Questions"][f"{question.id}"] = {
+                "Id": question.id,
+                "Created at": question.created_at,
+                "Updated at": question.updated_at,
+                "QuestionSet id": question.question_set_id,
+                "Question text": question.question_text,
+                "Answer type": question.answer_type,
+                "Answers": [],
+            }
+            for answer in answers:
+                formatted_information["Questions"][f"{question.id}"]["Answers"].append({
+                    "Id": answer.id,
+                    "Created at": answer.created_at,
+                    "Updated at": answer.updated_at,
+                    "Answer text": answer.answer_text,
+                })
+    pprint(formatted_information)
+    return formatted_information
+
 @app.put("/question_set/{id}/update")
-async def update_question_set(id: int, question_set: QuestionSetIn):
-    ...
+async def update_question_set(id: int, question_set: QuestionSetUpdateIn):
+    with Session(engine) as session:
+        session.execute(
+            update(QuestionSet).where(QuestionSet.id==id).values(
+                name=question_set.name,
+                active=question_set.active,
+            )
+        )
+        session.commit()
+        active_question_ids = [question.id for question in session.execute(
+            select(Question).where(Question.question_set_id==id)
+        ).scalars().all()]
+        new_question_ids = [question_id for question_id in question_set.question_ids if question_id not in active_question_ids]
+        disable_question_ids = [question_id for question_id in active_question_ids if question_id not in question_set.question_ids]
+
+        for question_id in new_question_ids:
+            # go through net new question_ids and add them to the question_set
+            session.execute(
+                update(Question).where(Question.id==question_id).values(question_set_id=id)
+            )
+            session.commit()
+
+        for question_id in disable_question_ids:
+            # go through question_ids that were active before this update came in
+            #   and disconnect them from the question_set
+            session.execute(
+                update(Question).where(Question.id==question_id).values(question_set_id=None)
+            )
+            session.commit()
+    return {
+        "message": f"Updated QuestionSet id: {id}",
+        "removed_question_ids": disable_question_ids,
+        "added_question_ids": new_question_ids,
+    }
+
 @app.delete("/question_set/{id}/delete")
 async def delete_question_set(id: int):
-    ...
+    with Session(engine) as session:
+        session.execute(
+            delete(QuestionSet).where(QuestionSet.id==id)
+        )
+        session.commit()
+    return {"message": "Delete successful"}
 
 
 ########################################

@@ -49,10 +49,65 @@ To spin up the containers, `docker compose up`, and then using `CTRL+C` to quit 
 `curl localhost:8000/organization/{id}/all_questions` will retrieve a hierarchy of all the questions and their related answers in the response. The curl response is hard to read as the number of questions and related answers grows, so I used the python library `pprint` to pretty-print the output in the server logs.
 
 ### PUT localhost:8000/organization/{id}/update
-`curl --location --request PUT 'localhost:8000/organization/1/update' --header 'Content-Type: application/json' --data '{"name": "<a new name for an organization>"}'` to update an organization. The only field updateable is the name, and the only other field that changes is the "updated_at" time which reflects the most recent time this endpoint has been used.
+```
+curl --location --request PUT 'localhost:8000/organization/2/update' \
+--header 'Content-Type: application/json' \
+--data '{"name": "a new name for an organization"}'
+```
+to update an organization. The only field updateable is the name, and the only other field that changes is the "updated_at" time which reflects the most recent time this endpoint has been used.
 
 ### DELETE localhost:8000/organization/{id}/
 `curl --location --request DELETE 'localhost:8000/organization/{id}'` to delete an organization.
+
+
+### POST localhost:8000/question_set/create
+```
+curl --location 'localhost:8000/question_set/create' \
+--header 'Content-Type: application/json' \
+--data '{
+    "name": "New question set",
+    "organization_id": 1,
+    "active": true,
+    "question_ids": [1, 3, 4, 5]
+}'
+```
+will create a question set. The `question_ids` parameter can be used with question ids that exist already, or it can be left blank. This is the same when creating questions, they can either be created on their own or created with a question_set_id that is non-null.
+
+### GET localhost:8000/question_set/{id}
+`curl localhost:8000/question_set/8` will retrieve information about a QuestionSet.
+
+### GET localhost:8000/question_set/{id}/all_questions
+`curl localhost:8000/question_set/8/all_questions` will retrieve detailed information about all the questions and associated answers for a question set. As with other endpoints, the information from this curl is hard to read so it is pretty printed in the container/server logs.
+
+
+### PUT localhost:8000/question_set/{id}/update
+```
+curl --location --request PUT 'localhost:8000/question_set/8/update' \
+--header 'Content-Type: application/json' \
+--data '{
+    "name": "A new name for question set",
+    "active": true,
+    "question_ids": [1, 2, 3]
+}'
+```
+will update a question set, with the ability to change the name, the active boolean, and the associated question_ids. This will remove the question ids that are no longer listed - ie if the question in the above example had `1, 3, 4, 5` as its questions, and then this `curl` was executed, it would remove questions `4, 5` by updating those questions `question_set_id` fields, and would add the question with id `2`. Its response looks like:
+```
+{
+    "message": "Updated QuestionSet id: 8",
+    "removed_question_ids": [
+        4,
+        5
+    ],
+    "added_question_ids": [
+        2
+    ]
+}
+```
+to help illustrate which question ids were added/removed from the question set.
+
+
+### DELETE localhost:8000/question_set/{id}/delete
+`curl --location --request DELETE 'localhost:8000/question_set/5/delete'` will delete a QuestionSet.
 
 
 ### POST localhost:8000/question/create
