@@ -60,6 +60,10 @@ class QuestionIn(BaseModel):
     question_set_id: Optional[int] = Field(None)
     answer_type: Optional[AnswerType] = Field(None)
 
+class QuestionUpdateIn(BaseModel):
+    question_text: str
+    question_set_id: Optional[int] = Field(None)
+
 
 class Question(Base):
     __tablename__ = "question"
@@ -88,6 +92,10 @@ class Question(Base):
 
 
 class AnswerIn(BaseModel):
+    answer_text: str
+    question_id: int
+
+class AnswerUpdateIn(BaseModel):
     answer_text: str
 
 

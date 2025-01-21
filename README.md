@@ -66,3 +66,57 @@ curl --location 'localhost:8000/question/create' \
 }'
 ```
 will create a question. The answer_type has to be `single_select` or `multiple_select`. There is an optional parameter for `question_set_id`.
+
+
+### GET localhost:8000/question/{id}
+`curl --location 'localhost:8000/question/1'` to get a question.
+
+
+### GET localhost:8000/question/{id}/answers
+`curl --location 'localhost:8000/question/{id}/answers'` to get a question with its associated answers. This can be a hard to read output so it is pretty-printed in the server logs.
+
+### PUT localhost:8000/question/{id}/update
+```
+curl --location --request PUT 'localhost:8000/question/1/update' \
+--header 'Content-Type: application/json' \
+--data '{
+    "question_text": "this is updated text",
+    "question_set_id": null,
+}'
+```
+will update a question. The `question_set_id` can be changed as well as the `question_text`.
+
+
+### DELETE localhost:8000/question/{id}/delete
+This will delete a question and its associated answers. I made this as an explicit design choice, and could be changed to make the `question_id` field on the `answer` table nullable.
+
+
+### POST localhost:8000/answer/{id}/create
+```
+curl --location 'localhost:8000/answer/create' \
+--header 'Content-Type: application/json' \
+--data '{
+    "question_id": <question_id>,
+    "answer_text": "this is an answer for a question"
+}'
+```
+will create an answer for an existing question. Questions must be created before answers can be created.
+
+
+### GET localhost:8000/answer/{id}
+`curl --location 'localhost:8000/answer/1'` to get an answer.
+
+
+### PUT localhost:8000/answer/{id}/update
+```
+curl --location --request PUT 'localhost:8000/answer/1/update' \
+--header 'Content-Type: application/json' \
+--data '{
+    "answer_text": "this is some updated answer text"
+}'
+```
+will update an answer. The only field updateable at the moment is the `answer_text` field.
+
+
+### DELETE localhost:8000/answer/{id}/delete
+`curl --location --request DELETE 'localhost:8000/answer/1/delete'` will delete an answer.

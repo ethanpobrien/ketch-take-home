@@ -6,7 +6,18 @@ from sqlalchemy.orm import Session
 
 from migration_0001 import run_migration as run_migration_0001
 from migration_0002 import run_migration as run_migration_0002
-from models import Organization, OrganizationIn, QuestionSet, QuestionSetIn, Question, QuestionIn, Answer, AnswerIn
+from models import (
+    Answer,
+    AnswerIn,
+    AnswerUpdateIn,
+    Organization,
+    OrganizationIn,
+    QuestionSet,
+    QuestionSetIn,
+    Question,
+    QuestionIn,
+    QuestionUpdateIn,
+)
 
 app = FastAPI()
 
@@ -115,6 +126,7 @@ async def get_all_questions(id: int):
                 "Updated at": question.updated_at,
                 "QuestionSet id": question.question_set_id,
                 "Question text": question.question_text,
+                "Answer type": question.answer_type,
                 "Answers": [],
             }
             for answer in answers:
@@ -149,37 +161,137 @@ async def create_question(question: QuestionIn):
 
 @app.get("/question/{id}")
 async def get_question(id: int):
-    ...
+    with Session(engine) as session:
+        question = session.execute(
+            select(Question).where(Question.id==id)
+        ).scalars().all()[0]
+    return question
+
+
 @app.get("/question/{id}/answers")
 async def get_question_with_answers(id: int):
-    ...
+    formatted_info = {}
+    with Session(engine) as session:
+        question = session.execute(
+            select(Question).where(Question.id==id)
+        ).scalars().all()[0]
+        answers = session.execute(
+            select(Answer).where(Answer.question_id==id)
+        ).scalars().all()
+        formatted_info = {
+            "Id": question.id,
+            "Created at": question.created_at,
+            "Updated at": question.updated_at,
+            "QuestionSet id": question.question_set_id,
+            "Question text": question.question_text,
+            "Answer type": question.answer_type,
+            "Answers": [],
+        }
+        for answer in answers:
+            formatted_info["Answers"].append({
+                "Id": answer.id,
+                "Created at": answer.created_at,
+                "Updated at": answer.updated_at,
+                "Answer text": answer.answer_text,
+            })
+    pprint(formatted_info)
+    return formatted_info
 
 @app.put("/question/{id}/update")
-async def update_question(id: int, question: QuestionIn):
-    ...
+async def update_question(id: int, question_update: QuestionUpdateIn):
+    with Session(engine) as session:
+        update_stmt = update(Question).where(
+            Question.id==id
+        ).values(
+            question_text=question_update.question_text,
+            question_set_id=question_update.question_set_id,
+        )
+        session.execute(
+            update_stmt
+        )
+        session.commit()
+        updated_question = session.execute(
+            select(Question).where(Question.id==id)
+        ).scalars().all()[0]
+    return updated_question
 
 @app.delete("/question/{id}/delete")
 async def delete_question(id: int):
+    # delete question with answers
+
+    # with Session(engine) as session:
+    #     session.execute(
+    #         delete(Organization).where(Organization.id==id)
+    #     )
+    #     session.commit()
+    # return {"message": "Delete successful"}
     ...
+
 
 @app.post("/answer/create")
 async def create_answer(answer: AnswerIn):
-    ...
+    with Session(engine) as session:
+        db_answer = Answer(
+            question_id=answer.question_id,
+            answer_text=answer.answer_text,
+        )
+        session.add_all([db_answer])
+        session.commit()
+        answer = session.execute(
+            select(Answer).where(
+                Answer.question_id==db_answer.question_id,
+                Answer.answer_text==db_answer.answer_text
+            )
+        ).scalars().all()[0]
+    return {"Created resource": answer}
+
+
 @app.get("/answer/{id}")
 async def get_answer(id: int):
-    ...
+    with Session(engine) as session:
+        answer = session.execute(
+            select(Answer).where(Answer.id==id)
+        ).scalars().all()[0]
+    return answer
+
+
 @app.put("/answer/{id}/update")
-async def update_answer(id: int, answer: AnswerIn):
-    ...
+async def update_answer(id: int, answer: AnswerUpdateIn):
+    with Session(engine) as session:
+        update_stmt = update(Answer).where(
+            Answer.id==id
+        ).values(
+            answer_text=answer.answer_text,
+        )
+        session.execute(
+            update_stmt
+        )
+        session.commit()
+        updated_answer = session.execute(
+            select(Answer).where(Answer.id==id)
+        ).scalars().all()[0]
+    return updated_answer 
+
+
 @app.delete("/answer/{id}/delete")
 async def delete_answer(id: int):
-    ...
+    with Session(engine) as session:
+        session.execute(
+            delete(Answer).where(Answer.id==id)
+        )
+        session.commit()
+    return {"message": "Delete successful"}
 
 @app.post("/question_set/create")
 async def create_question_set(question_set: QuestionSetIn):
     ...
 @app.get("/question_set/{id}")
 async def get_question_set(id: int):
+    # with Session(engine) as session:
+    #     question = session.execute(
+    #         select(Question).where(Question.id==id)
+    #     ).scalars().all()[0]
+    # return question
     ...
 @app.put("/question_set/{id}/update")
 async def update_question_set(id: int, question_set: QuestionSetIn):
