@@ -50,25 +50,25 @@ def run_migration():
         # create questions
         question_01 = Question(
             organization_id=org.id,
-            question_set_id=question_set.id,
+            # question_set_id=question_set.id,
             question_text="First example question text?",
             answer_type="single_select",
         )
         question_02 = Question(
             organization_id=org.id,
-            question_set_id=question_set.id,
+            # question_set_id=question_set.id,
             question_text="Second example question text?",
             answer_type="multiple_select",
         )
         question_03 = Question(
             organization_id=org.id,
-            question_set_id=question_set.id,
+            # question_set_id=question_set.id,
             question_text="Third example question text?",
             answer_type="single_select",
         )
         question_04 = Question(
             organization_id=org.id,
-            question_set_id=question_set.id,
+            # question_set_id=question_set.id,
             question_text="Fourth example question text?",
             answer_type="multiple_select",
         )
@@ -85,6 +85,11 @@ def run_migration():
             question_04,
             question_05,
         ])
+        session.commit()
+        question_set.questions.append(question_01)
+        question_set.questions.append(question_02)
+        question_set.questions.append(question_03)
+        question_set.questions.append(question_04)
         session.commit()
 
         # fetch Questions

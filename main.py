@@ -125,7 +125,7 @@ async def get_all_questions(id: int):
                 "Id": question.id,
                 "Created at": question.created_at,
                 "Updated at": question.updated_at,
-                "QuestionSet id": question.question_set_id,
+                "QuestionSet ids": [question_set.id for question_set in question.question_set],
                 "Question text": question.question_text,
                 "Answer type": question.answer_type,
                 "Answers": [],
@@ -152,7 +152,8 @@ async def create_question(question: QuestionIn):
         if question.answer_type is None:
             return {"Error": "question.answer_type cannot be null on creation"}
         if question.question_set_id is not None:
-            db_question.question_set_id = question.question_set_id
+            question_set = session.query(QuestionSet).get(question.question_set_id)
+            db_question.question_set.append(question_set)
         session.add_all([db_question])
         session.commit()
         question = session.execute(
@@ -183,7 +184,7 @@ async def get_question_with_answers(id: int):
             "Id": question.id,
             "Created at": question.created_at,
             "Updated at": question.updated_at,
-            "QuestionSet id": question.question_set_id,
+            "QuestionSet ids": [question_set.id for question_set in question.question_set],
             "Question text": question.question_text,
             "Answer type": question.answer_type,
             "Answers": [],
@@ -205,15 +206,19 @@ async def update_question(id: int, question_update: QuestionUpdateIn):
             Question.id==id
         ).values(
             question_text=question_update.question_text,
-            question_set_id=question_update.question_set_id,
         )
         session.execute(
             update_stmt
         )
         session.commit()
-        updated_question = session.execute(
-            select(Question).where(Question.id==id)
-        ).scalars().all()[0]
+        updated_question = session.query(Question).get(id)
+        # allowing for adding of Questions to QuestionSets from the Question update, but does not allow for removal
+        #   which has to be done from the QuestionSet update route
+        if question_update.question_set_id not in [question_set.id for question_set in updated_question.question_set]:
+            question_set = session.query(QuestionSet).get(question_update.question_set_id)
+            question_set.questions.append(updated_question)
+            session.commit()
+        session.refresh(updated_question)
     return updated_question
 
 @app.delete("/question/{id}/delete")
@@ -289,6 +294,13 @@ async def delete_answer(id: int):
 @app.post("/question_set/create")
 async def create_question_set(question_set_in: QuestionSetIn):
     with Session(engine) as session:
+        # set other QuestionSets to inactive
+        if question_set_in.active:
+            session.execute(
+                update(QuestionSet).where(QuestionSet.active==True).values(active=False)
+            )
+            session.commit()
+        # create QuestionSet
         db_question_set = QuestionSet(
             organization_id=question_set_in.organization_id,
             name=question_set_in.name,
@@ -297,15 +309,9 @@ async def create_question_set(question_set_in: QuestionSetIn):
         session.add_all([db_question_set])
         session.commit()
         session.refresh(db_question_set)
-        print(db_question_set.id)
         for question_id in question_set_in.question_ids:
-            session.execute(
-                update(Question).where(
-                    Question.id==question_id
-                ).values(
-                    question_set_id=db_question_set.id
-                )
-            )
+            question = session.query(Question).get(question_id)
+            db_question_set.questions.append(question)
             session.commit()
         return {"message": f"Created QuestionSet with Id {db_question_set.id} and added Question Ids {question_set_in.question_ids} to the QuestionSet"}
 
@@ -330,9 +336,7 @@ async def get_question_set_with_questions(id: int):
             "Created_at": question_set.created_at,
             "Updated_at": question_set.updated_at,
         }
-        questions = session.execute(
-            select(Question).where(Question.question_set_id==id)
-        ).scalars().all()
+        questions = question_set.questions
         formatted_information["Questions"] = {}
         for question in questions:
             answers = session.execute(
@@ -342,7 +346,7 @@ async def get_question_set_with_questions(id: int):
                 "Id": question.id,
                 "Created at": question.created_at,
                 "Updated at": question.updated_at,
-                "QuestionSet id": question.question_set_id,
+                "QuestionSet ids": [question_set.id for question_set in question.question_set],
                 "Question text": question.question_text,
                 "Answer type": question.answer_type,
                 "Answers": [],
@@ -358,39 +362,46 @@ async def get_question_set_with_questions(id: int):
     return formatted_information
 
 @app.put("/question_set/{id}/update")
-async def update_question_set(id: int, question_set: QuestionSetUpdateIn):
+async def update_question_set(id: int, question_set_in: QuestionSetUpdateIn):
     with Session(engine) as session:
+        question_set = session.query(QuestionSet).get(id)
+        # if change is enabling a question set, disable other active question set
+        set_to_active = False
+        if question_set_in.active == True and question_set.active != True:
+            session.execute(
+                update(QuestionSet).where(QuestionSet.active==True).values(active=False)
+            )
+            session.commit()
+            set_to_active = True
         session.execute(
             update(QuestionSet).where(QuestionSet.id==id).values(
                 name=question_set.name,
-                active=question_set.active,
+                active=question_set_in.active,
             )
         )
         session.commit()
-        active_question_ids = [question.id for question in session.execute(
-            select(Question).where(Question.question_set_id==id)
-        ).scalars().all()]
-        new_question_ids = [question_id for question_id in question_set.question_ids if question_id not in active_question_ids]
-        disable_question_ids = [question_id for question_id in active_question_ids if question_id not in question_set.question_ids]
+        session.refresh(question_set)
+        active_question_ids = [question.id for question in question_set.questions]
+        new_question_ids = [question_id for question_id in question_set_in.question_ids if question_id not in active_question_ids]
+        disable_question_ids = [question_id for question_id in active_question_ids if question_id not in question_set_in.question_ids]
 
         for question_id in new_question_ids:
             # go through net new question_ids and add them to the question_set
-            session.execute(
-                update(Question).where(Question.id==question_id).values(question_set_id=id)
-            )
+            question = session.query(Question).get(question_id)
+            question_set.questions.append(question)
             session.commit()
 
         for question_id in disable_question_ids:
             # go through question_ids that were active before this update came in
             #   and disconnect them from the question_set
-            session.execute(
-                update(Question).where(Question.id==question_id).values(question_set_id=None)
-            )
+            question = session.query(Question).get(question_id)
+            question_set.questions.remove(question)
             session.commit()
     return {
         "message": f"Updated QuestionSet id: {id}",
         "removed_question_ids": disable_question_ids,
         "added_question_ids": new_question_ids,
+        "set_to_active_question_set": set_to_active,
     }
 
 @app.delete("/question_set/{id}/delete")

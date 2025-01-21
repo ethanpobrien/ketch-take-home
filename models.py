@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Literal, get_args, Optional, List
 
 from pydantic import BaseModel, Field
-from sqlalchemy import String, ForeignKey, Enum, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import String, ForeignKey, Enum, func, Column, Table
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 AnswerType = Literal["single_select", "multiple_select"]
@@ -32,6 +34,14 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(60))
 
 
+question_question_set_table = Table(
+    "question_question_set_table",
+    Base.metadata,
+    Column("question_set_id", ForeignKey("question_set.id"), primary_key=True),
+    Column("question_id", ForeignKey("question.id"), primary_key=True),
+)
+
+
 class QuestionSetIn(BaseModel):
     organization_id: int
     name: str
@@ -57,9 +67,11 @@ class QuestionSet(Base):
     )
 
     organization_id: Mapped[int] = mapped_column(ForeignKey("organization.id"))
+    questions: Mapped[List[Question]] = relationship(
+        secondary=question_question_set_table, back_populates="question_set"
+    )
     name: Mapped[str] = mapped_column(String(100))
     active: Mapped[bool] = mapped_column(default=False)
-
 
 class QuestionIn(BaseModel):
     question_text: str
@@ -85,7 +97,12 @@ class Question(Base):
     )
 
     organization_id: Mapped[int] = mapped_column(ForeignKey("organization.id"))
-    question_set_id: Mapped[int] = mapped_column(ForeignKey("question_set.id"), nullable=True)
+    # question_set_id: Mapped[int] = mapped_column(ForeignKey("question_set.id"), nullable=True)
+    question_set: Mapped[List[QuestionSet]] = relationship(
+        secondary=question_question_set_table, back_populates="questions"
+    )
+
+
 
     question_text: Mapped[str] = mapped_column(String(300))
 
